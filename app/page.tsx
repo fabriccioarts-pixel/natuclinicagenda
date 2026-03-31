@@ -186,6 +186,8 @@ export default function NatuclinicFunnel() {
   const [showVideoControls, setShowVideoControls] = useState(false)
   const [isMuted, setIsMuted] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
+  const [audioProgress, setAudioProgress] = useState(0)
+  const [currentPlayingUrl, setCurrentPlayingUrl] = useState<string | null>(null)
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -202,6 +204,8 @@ export default function NatuclinicFunnel() {
 
   const startAudio = (url: string, onEnd?: () => void) => {
     setIsPlayingAudio(true)
+    setCurrentPlayingUrl(url)
+    setAudioProgress(0)
 
     if (backgroundMusicRef.current && !backgroundMusicRef.current.paused) {
       backgroundMusicRef.current.pause()
@@ -213,9 +217,18 @@ export default function NatuclinicFunnel() {
       audioRef.current = audio
     }
 
+    const handleTimeUpdate = () => {
+      if (audio && audio.duration) {
+        setAudioProgress((audio.currentTime / audio.duration) * 100)
+      }
+    }
+
     const handleEnd = () => {
       audio!.removeEventListener("ended", handleEnd)
       audio!.removeEventListener("error", handleError)
+      audio!.removeEventListener("timeupdate", handleTimeUpdate)
+      setAudioProgress(0)
+      setCurrentPlayingUrl(null)
       if (onEnd) onEnd()
       
       if (audioQueueRef.current.length > 0) {
@@ -237,6 +250,7 @@ export default function NatuclinicFunnel() {
     audio.src = url
     audio.addEventListener("ended", handleEnd)
     audio.addEventListener("error", handleError)
+    audio.addEventListener("timeupdate", handleTimeUpdate)
 
     audio.play().catch((err) => {
       console.warn("[Natuclinic] Play failed:", url, err)
@@ -267,7 +281,13 @@ export default function NatuclinicFunnel() {
     setIsPlayingAudio(false)
   }
 
-  const playAudio = (url: string, onEnd?: () => void) => {
+  const playAudio = (url: string, onEnd?: () => void, immediate = false) => {
+    if (immediate) {
+      stopAllAudio()
+      startAudio(url, onEnd)
+      return
+    }
+    
     if (isPlayingAudio) {
       audioQueueRef.current.push({ url, onEnd })
     } else {
@@ -741,20 +761,36 @@ export default function NatuclinicFunnel() {
                       </div>
 
                       {message.audioUrl && (
-                        <div className="flex items-center gap-1">
-                          <Volume2 className={`w-4 h-4 ${isPlayingAudio && audioRef.current?.src === message.audioUrl ? "text-primary animate-pulse" : "text-muted-foreground"}`} />
-                          <div className="flex gap-0.5 items-center">
-                            {[...Array(15)].map((_, i) => (
-                              <div
-                                key={i}
-                                className={`w-0.5 bg-primary rounded-full ${isPlayingAudio && audioRef.current?.src === message.audioUrl ? "animate-soundwave" : ""}`}
-                                style={{
-                                  height: `${Math.random() * 12 + 8}px`,
-                                  animationDelay: `${i * 0.1}s`,
-                                  opacity: (isPlayingAudio && audioRef.current?.src === message.audioUrl) ? 1 : 0.4
-                                }}
-                              />
-                            ))}
+                        <div className="flex items-center gap-3 mt-3 min-w-[220px] md:min-w-[300px]">
+                          <button
+                            onClick={() => {
+                              if (isPlayingAudio && currentPlayingUrl === message.audioUrl) {
+                                stopAllAudio()
+                              } else {
+                                playAudio(message.audioUrl!, undefined, true)
+                              }
+                            }}
+                            className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                              isPlayingAudio && currentPlayingUrl === message.audioUrl 
+                                ? "bg-[#D81B60] text-white shadow-lg" 
+                                : "bg-primary/20 text-primary hover:bg-primary/30"
+                            }`}
+                          >
+                            {isPlayingAudio && currentPlayingUrl === message.audioUrl ? (
+                              <Pause className="w-5 h-5 fill-current" />
+                            ) : (
+                              <Play className="w-5 h-5 fill-current" />
+                            )}
+                          </button>
+                          
+                          <div className="flex-1 h-3 bg-muted/50 rounded-full overflow-hidden relative">
+                            <div
+                              className="absolute inset-y-0 left-0 bg-[#D81B60] transition-all duration-300"
+                              style={{ 
+                                width: `${isPlayingAudio && currentPlayingUrl === message.audioUrl ? audioProgress : 0}%`,
+                                boxShadow: isPlayingAudio && currentPlayingUrl === message.audioUrl ? "0 0 10px rgba(216, 27, 96, 0.4)" : "none"
+                              }}
+                            />
                           </div>
                         </div>
                       )}
