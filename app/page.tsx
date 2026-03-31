@@ -792,7 +792,7 @@ export default function NatuclinicFunnel() {
                             }}
                             className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
                               isPlayingAudio && currentPlayingUrl === message.audioUrl 
-                                ? "bg-[#D81B60] text-white shadow-lg" 
+                                ? "bg-[#8E3A4D] text-white shadow-lg" 
                                 : "bg-primary/20 text-primary hover:bg-primary/30"
                             }`}
                           >
@@ -809,10 +809,10 @@ export default function NatuclinicFunnel() {
                               const barWidth = isActive ? `${audioProgress}%` : "0%";
                               return (
                                 <div
-                                  className="absolute inset-y-0 left-0 bg-[#D81B60] transition-all duration-300"
+                                  className="absolute inset-y-0 left-0 bg-[#8E3A4D] transition-all duration-300"
                                   style={{ 
                                     width: barWidth,
-                                    boxShadow: isActive ? "0 0 10px rgba(216, 27, 96, 0.4)" : "none"
+                                    boxShadow: isActive ? "0 0 12px rgba(142, 58, 77, 0.4)" : "none"
                                   }}
                                 />
                               );
