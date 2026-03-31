@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Volume2, VolumeX, Phone, Video, CheckCheck, Play } from "lucide-react"
+import { Volume2, VolumeX, Phone, Video, CheckCheck, Play, Pause } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Textarea } from "@/components/ui/textarea"
@@ -194,6 +194,7 @@ export default function NatuclinicFunnel() {
   const backgroundMusicRef = useRef<HTMLAudioElement | null>(null)
   const chatContainerRef = useRef<HTMLDivElement | null>(null)
   const pencilSoundRef = useRef<HTMLAudioElement | null>(null)
+  const sfxRef = useRef<HTMLAudioElement | null>(null)
   const audioQueueRef = useRef<{ url: string; onEnd?: () => void }[]>([])
 
   useEffect(() => {
@@ -232,8 +233,13 @@ export default function NatuclinicFunnel() {
       if (onEnd) onEnd()
       
       if (audioQueueRef.current.length > 0) {
-        const next = audioQueueRef.current.shift()!
-        startAudio(next.url, next.onEnd)
+        // Delay before next to prevent rapid recursion 
+        setTimeout(() => {
+          if (audioQueueRef.current.length > 0) {
+            const next = audioQueueRef.current.shift()!
+            startAudio(next.url, next.onEnd)
+          }
+        }, 100)
       } else {
         setIsPlayingAudio(false)
         if (backgroundMusicRef.current && backgroundMusicRef.current.paused) {
@@ -322,17 +328,19 @@ export default function NatuclinicFunnel() {
   }
 
   const playReceiveSound = () => {
-    const notification = new Audio("/receive notification.mp3")
-    notification.volume = 0.4
-    notification.play().catch(() => {
+    if (!sfxRef.current) sfxRef.current = new Audio()
+    sfxRef.current.src = encodeURI("/receive notification.mp3")
+    sfxRef.current.volume = 0.4
+    sfxRef.current.play().catch(() => {
       console.warn("[Natuclinic] Receive notification sound missing")
     })
   }
 
   const playSendSound = () => {
-    const notification = new Audio("/send notification.mp3")
-    notification.volume = 0.4
-    notification.play().catch(() => {
+    if (!sfxRef.current) sfxRef.current = new Audio()
+    sfxRef.current.src = encodeURI("/send notification.mp3")
+    sfxRef.current.volume = 0.4
+    sfxRef.current.play().catch(() => {
       console.warn("[Natuclinic] Send notification sound missing")
     })
   }
@@ -428,6 +436,18 @@ export default function NatuclinicFunnel() {
   const startChat = () => {
     if (isPlayingAudio) return
     setStep("chat")
+
+    // Warm up audio for iOS/Safari
+    if (audioRef.current) {
+      audioRef.current.play().catch(() => {})
+      audioRef.current.pause()
+    }
+    if (sfxRef.current) {
+      sfxRef.current.play().catch(() => {})
+      sfxRef.current.pause()
+    }
+    
+    playBackgroundMusic()
 
     setTimeout(() => {
       setChatPhase("name-question")
@@ -784,13 +804,19 @@ export default function NatuclinicFunnel() {
                           </button>
                           
                           <div className="flex-1 h-3 bg-muted/50 rounded-full overflow-hidden relative">
-                            <div
-                              className="absolute inset-y-0 left-0 bg-[#D81B60] transition-all duration-300"
-                              style={{ 
-                                width: `${isPlayingAudio && currentPlayingUrl === message.audioUrl ? audioProgress : 0}%`,
-                                boxShadow: isPlayingAudio && currentPlayingUrl === message.audioUrl ? "0 0 10px rgba(216, 27, 96, 0.4)" : "none"
-                              }}
-                            />
+                            {(() => {
+                              const isActive = isPlayingAudio && currentPlayingUrl === message.audioUrl;
+                              const barWidth = isActive ? `${audioProgress}%` : "0%";
+                              return (
+                                <div
+                                  className="absolute inset-y-0 left-0 bg-[#D81B60] transition-all duration-300"
+                                  style={{ 
+                                    width: barWidth,
+                                    boxShadow: isActive ? "0 0 10px rgba(216, 27, 96, 0.4)" : "none"
+                                  }}
+                                />
+                              );
+                            })()}
                           </div>
                         </div>
                       )}
