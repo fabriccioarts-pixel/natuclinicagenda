@@ -192,12 +192,50 @@ export default function NatuclinicFunnel() {
   const backgroundMusicRef = useRef<HTMLAudioElement | null>(null)
   const chatContainerRef = useRef<HTMLDivElement | null>(null)
   const pencilSoundRef = useRef<HTMLAudioElement | null>(null)
+  const audioQueueRef = useRef<{ url: string; onEnd?: () => void }[]>([])
 
   useEffect(() => {
     if (step === "video" && videoRef.current) {
       videoRef.current.play().catch(() => {})
     }
   }, [step])
+
+  const startAudio = (url: string, onEnd?: () => void) => {
+    const audio = new Audio(url)
+    audioRef.current = audio
+    setIsPlayingAudio(true)
+
+    if (backgroundMusicRef.current && !backgroundMusicRef.current.paused) {
+      backgroundMusicRef.current.pause()
+    }
+
+    const handleEnd = () => {
+      if (onEnd) onEnd()
+      
+      // Process next in queue
+      if (audioQueueRef.current.length > 0) {
+        const next = audioQueueRef.current.shift()!
+        startAudio(next.url, next.onEnd)
+      } else {
+        setIsPlayingAudio(false)
+        if (backgroundMusicRef.current && backgroundMusicRef.current.paused) {
+          backgroundMusicRef.current.play().catch(() => {})
+        }
+      }
+    }
+
+    audio.addEventListener("ended", handleEnd)
+    
+    audio.addEventListener("error", (err) => {
+      console.warn("[Natuclinic] Audio error:", url, err)
+      handleEnd()
+    })
+
+    audio.play().catch((err) => {
+      console.warn("[Natuclinic] Play failed:", url, err)
+      handleEnd()
+    })
+  }
 
 
   const [duration, setDuration] = useState("")
@@ -218,44 +256,16 @@ export default function NatuclinicFunnel() {
       pencilSoundRef.current.src = ""
       pencilSoundRef.current = null
     }
+    audioQueueRef.current = [] // Clear the queue
     setIsPlayingAudio(false)
   }
 
   const playAudio = (url: string, onEnd?: () => void) => {
-    stopAllAudio()
-
-    const audio = new Audio(url)
-    audioRef.current = audio
-    setIsPlayingAudio(true)
-
-    audio.addEventListener("ended", () => {
-      setIsPlayingAudio(false)
-      if (backgroundMusicRef.current && backgroundMusicRef.current.paused) {
-        backgroundMusicRef.current.play().catch(() => {})
-      }
-      if (onEnd) onEnd()
-    })
-
-    audio.addEventListener("error", () => {
-      setIsPlayingAudio(false)
-      if (backgroundMusicRef.current && backgroundMusicRef.current.paused) {
-        backgroundMusicRef.current.play().catch(() => {})
-      }
-      if (onEnd) onEnd()
-    })
-
-    if (backgroundMusicRef.current && !backgroundMusicRef.current.paused) {
-      backgroundMusicRef.current.pause()
+    if (isPlayingAudio) {
+      audioQueueRef.current.push({ url, onEnd })
+    } else {
+      startAudio(url, onEnd)
     }
-
-    audio.play().catch((err) => {
-      console.warn("[Natuclinic] Audio playback failed (possibly file missing):", url, err)
-      setIsPlayingAudio(false)
-      if (backgroundMusicRef.current && backgroundMusicRef.current.paused) {
-        backgroundMusicRef.current.play().catch(() => {})
-      }
-      if (onEnd) onEnd()
-    })
   }
 
   const playBackgroundMusic = () => {
@@ -696,7 +706,7 @@ export default function NatuclinicFunnel() {
                       }`}
                     >
                       <div className="flex flex-col">
-                        {!message.audioUrl && <p className="text-sm md:text-base leading-relaxed">{message.content}</p>}
+                        <p className="text-sm md:text-base leading-relaxed">{message.content}</p>
                         {message.type === "user" && (
                           <div className="flex justify-end items-center gap-1 mt-1 -mb-1 opacity-70">
                             <span className="text-[10px]">agora</span>
@@ -903,26 +913,18 @@ export default function NatuclinicFunnel() {
                 {chatPhase === "service" && selectedComplaint && (
                   <div className="space-y-6 animate-fade-in">
                     <div className="bg-card/90 backdrop-blur-sm border border-border rounded-xl overflow-hidden">
-                      <div className="relative h-64 md:h-80">
-                        <img
-                          src={services[selectedComplaint].imageUrl || "/placeholder.svg"}
-                          alt={services[selectedComplaint].title}
-                          className="w-full h-full object-cover"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
-                        <div className="absolute bottom-6 left-6 right-6">
-                          <h2 className="text-3xl md:text-4xl font-serif text-white mb-2">
-                            {services[selectedComplaint].title}
-                          </h2>
-                          <p className="text-white/90">{services[selectedComplaint].description}</p>
-                        </div>
+                      <div className="p-8 border-b border-border">
+                        <h2 className="text-3xl md:text-4xl font-serif text-primary mb-2">
+                          {services[selectedComplaint].title}
+                        </h2>
+                        <p className="text-muted-foreground text-lg">{services[selectedComplaint].description}</p>
                       </div>
 
                       <div className="p-6 space-y-4">
                         <p className="text-lg leading-relaxed">{services[selectedComplaint].longDescription}</p>
 
                         {!isPlayingAudio && (
-                          <Button onClick={handleServiceNext} className="w-full" size="lg">
+                          <Button onClick={handleServiceNext} className="w-full py-6 text-lg" size="lg">
                             Continuar
                           </Button>
                         )}
