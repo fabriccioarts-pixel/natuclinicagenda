@@ -7,7 +7,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-type Complaint = "cansaco" | "vitaminas" | "rosto" | "harmonizacao-facial" | "corpo" | "estetica-intima" | "estresse"
+type Complaint = "cansaco" | "vitaminas" | "rosto" | "harmonizacao-facial" | "corpo" | "estetica-intima" | "gluteos" | "melasma"
 
 type ChatMessage = {
   id: string
@@ -87,13 +87,21 @@ const services: Record<Complaint, Service> = {
       "/estetica-intima.mp3",
     imageUrl: "/clinic-intima.jpg",
   },
-  estresse: {
-    id: "spa",
-    title: "Spa",
-    description: "Experiência completa de relaxamento e renovação",
-    longDescription: "Aqui você encontra um espaço de acolhimento total, para relaxar corpo e mente.",
-    audioUrl: "/spa.mp3",
-    imageUrl: "/clinic-spa.jpg",
+  gluteos: {
+    id: "harmonizacao-gluteos",
+    title: "Harmonização de Glúteos",
+    description: "Procedimentos avançados para remodelamento e aumento",
+    longDescription: "Um tratamento exclusivo focado em realçar e harmonizar os glúteos de forma segura e elegante.",
+    audioUrl: "/harmonizacao-gluteos.mp3",
+    imageUrl: "/clinic-gluteos.jpg",
+  },
+  melasma: {
+    id: "tratamento-melasma",
+    title: "Tratamento para Melasma",
+    description: "Protocolos despigmentantes para uniformizar a pele e tratar manchas",
+    longDescription: "Abordagem especializada e progressiva para controle do melasma e clareamento da pele, devolvendo o brilho natural.",
+    audioUrl: "/tratamento-melasma.mp3",
+    imageUrl: "/clinic-melasma.jpg",
   },
 }
 
@@ -136,10 +144,16 @@ const complaints = [
     image: "/queixa-intima.jpg",
   },
   {
-    id: "estresse" as Complaint,
-    label: "Estresse / necessidade de relaxar",
-    icon: "🧘",
-    image: "/queixa-estresse.jpg",
+    id: "gluteos" as Complaint,
+    label: "Harmonização de Glúteos",
+    icon: "🍑",
+    image: "/queixa-gluteos.jpg",
+  },
+  {
+    id: "melasma" as Complaint,
+    label: "Tratamento para Melasma",
+    icon: "☀️",
+    image: "/queixa-melasma.jpg",
   },
 ]
 
