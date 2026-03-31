@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Volume2, Phone, Video, CheckCheck } from "lucide-react"
+import { Volume2, VolumeX, Phone, Video, CheckCheck, Play } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Textarea } from "@/components/ui/textarea"
@@ -184,12 +184,21 @@ export default function NatuclinicFunnel() {
   const [userPhone, setUserPhone] = useState("")
   const [videoProgress, setVideoProgress] = useState(0)
   const [showVideoControls, setShowVideoControls] = useState(false)
+  const [isMuted, setIsMuted] = useState(false)
+  const [isPlaying, setIsPlaying] = useState(false)
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const backgroundMusicRef = useRef<HTMLAudioElement | null>(null)
   const chatContainerRef = useRef<HTMLDivElement | null>(null)
   const pencilSoundRef = useRef<HTMLAudioElement | null>(null)
+
+  useEffect(() => {
+    if (step === "video" && videoRef.current) {
+      videoRef.current.play().catch(() => {})
+    }
+  }, [step])
+
 
   const [duration, setDuration] = useState("")
   const [interference, setInterference] = useState("")
@@ -201,10 +210,13 @@ export default function NatuclinicFunnel() {
   const stopAllAudio = () => {
     if (audioRef.current) {
       audioRef.current.pause()
-      audioRef.current.currentTime = 0
+      audioRef.current.src = ""
+      audioRef.current = null
     }
-    if (backgroundMusicRef.current) {
-      backgroundMusicRef.current.pause()
+    if (pencilSoundRef.current) {
+      pencilSoundRef.current.pause()
+      pencilSoundRef.current.src = ""
+      pencilSoundRef.current = null
     }
     setIsPlayingAudio(false)
   }
@@ -224,13 +236,24 @@ export default function NatuclinicFunnel() {
       if (onEnd) onEnd()
     })
 
+    audio.addEventListener("error", () => {
+      setIsPlayingAudio(false)
+      if (backgroundMusicRef.current && backgroundMusicRef.current.paused) {
+        backgroundMusicRef.current.play().catch(() => {})
+      }
+      if (onEnd) onEnd()
+    })
+
     if (backgroundMusicRef.current && !backgroundMusicRef.current.paused) {
       backgroundMusicRef.current.pause()
     }
 
     audio.play().catch((err) => {
-      console.error("[v0] Audio playback failed:", err)
+      console.warn("[Natuclinic] Audio playback failed (possibly file missing):", url, err)
       setIsPlayingAudio(false)
+      if (backgroundMusicRef.current && backgroundMusicRef.current.paused) {
+        backgroundMusicRef.current.play().catch(() => {})
+      }
       if (onEnd) onEnd()
     })
   }
@@ -249,11 +272,34 @@ export default function NatuclinicFunnel() {
   }
 
   const playPencilSound = () => {
-    const pencil = new Audio(
-      "/pencil-writing.mp3",
-    )
+    if (pencilSoundRef.current) {
+      pencilSoundRef.current.pause()
+      pencilSoundRef.current.currentTime = 0
+    }
+    const pencil = new Audio("/pencil-writing.mp3")
     pencil.volume = 0.5
-    pencil.play().catch(() => {})
+    pencilSoundRef.current = pencil
+    pencil.play().catch(() => {
+      console.warn("[Natuclinic] Pencil sound missing")
+    })
+  }
+
+  const toggleMute = () => {
+    if (videoRef.current) {
+      const newMutedState = !isMuted
+      videoRef.current.muted = newMutedState
+      setIsMuted(newMutedState)
+    }
+  }
+
+  const togglePlay = () => {
+    if (videoRef.current) {
+      if (videoRef.current.paused) {
+        videoRef.current.play().catch(err => console.error("Error playing video:", err))
+      } else {
+        videoRef.current.pause()
+      }
+    }
   }
 
   const addDoctorMessage = (content: string, audioUrl?: string, delay = 1000) => {
@@ -520,10 +566,12 @@ export default function NatuclinicFunnel() {
               ref={videoRef}
               autoPlay
               playsInline
-              muted
-              className="absolute inset-0 w-full h-full object-cover"
+              muted={isMuted}
+              className={`absolute inset-0 w-full h-full object-cover transition-all duration-1000 ${videoEnded ? 'blur-md brightness-50' : ''}`}
               onEnded={handleVideoEnded}
               onError={handleVideoError}
+              onPlay={() => setIsPlaying(true)}
+              onPause={() => setIsPlaying(false)}
               onTimeUpdate={() => {
                 if (videoRef.current) {
                   const current = videoRef.current.currentTime
@@ -553,14 +601,35 @@ export default function NatuclinicFunnel() {
             </div>
           </div>
 
-          {/* Top Skip Button */}
-          {!videoEnded && !videoError && (
+          {/* Top Control Buttons */}
+          <div className="absolute top-10 left-6 right-6 z-30 flex justify-between items-center">
             <button 
-              onClick={handleSkipVideo} 
-              className="absolute top-10 right-6 z-30 text-white/80 hover:text-white text-sm font-medium bg-black/20 backdrop-blur-sm px-4 py-2 rounded-full transition-all"
+              onClick={toggleMute} 
+              className="text-white/80 hover:text-white bg-black/20 backdrop-blur-sm p-3 rounded-full transition-all"
             >
-              Pular
+              {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
             </button>
+
+            {!videoEnded && !videoError && (
+              <button 
+                onClick={handleSkipVideo} 
+                className="text-white/80 hover:text-white text-sm font-medium bg-black/20 backdrop-blur-sm px-4 py-2 rounded-full transition-all"
+              >
+                Pular
+              </button>
+            )}
+          </div>
+
+          {/* Central Play Button (for iOS/Autoplay blocked) */}
+          {!isPlaying && !videoEnded && !videoError && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center">
+              <button 
+                onClick={togglePlay}
+                className="w-20 h-20 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-all border border-white/30"
+              >
+                <Play className="w-10 h-10 fill-current" />
+              </button>
+            </div>
           )}
 
           {/* Always show overlay and content */}
