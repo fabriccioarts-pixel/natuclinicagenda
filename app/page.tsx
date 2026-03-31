@@ -201,18 +201,23 @@ export default function NatuclinicFunnel() {
   }, [step])
 
   const startAudio = (url: string, onEnd?: () => void) => {
-    const audio = new Audio(url)
-    audioRef.current = audio
     setIsPlayingAudio(true)
 
     if (backgroundMusicRef.current && !backgroundMusicRef.current.paused) {
       backgroundMusicRef.current.pause()
     }
 
+    let audio = audioRef.current
+    if (!audio) {
+      audio = new Audio()
+      audioRef.current = audio
+    }
+
     const handleEnd = () => {
+      audio!.removeEventListener("ended", handleEnd)
+      audio!.removeEventListener("error", handleError)
       if (onEnd) onEnd()
       
-      // Process next in queue
       if (audioQueueRef.current.length > 0) {
         const next = audioQueueRef.current.shift()!
         startAudio(next.url, next.onEnd)
@@ -224,12 +229,14 @@ export default function NatuclinicFunnel() {
       }
     }
 
-    audio.addEventListener("ended", handleEnd)
-    
-    audio.addEventListener("error", (err) => {
+    const handleError = (err: any) => {
       console.warn("[Natuclinic] Audio error:", url, err)
       handleEnd()
-    })
+    }
+
+    audio.src = url
+    audio.addEventListener("ended", handleEnd)
+    audio.addEventListener("error", handleError)
 
     audio.play().catch((err) => {
       console.warn("[Natuclinic] Play failed:", url, err)
