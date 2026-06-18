@@ -1,21 +1,36 @@
 
 import { NextResponse } from 'next/server';
 
-const TELEGRAM_BOT_TOKEN = '8740764298:AAFwVjTTicpv53Ec5XWWVSW71m0quvgkI18'; 
-const TELEGRAM_CHAT_ID = '6034449977'; 
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!;
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID!;
 
 export async function POST(request: Request) {
   try {
-    const { name, phone, complaint, details } = await request.json();
-    
-    // Format phone to just numbers for URL 
-    const plainPhone = phone.replace(/\D/g, "");
+    const body = await request.json();
+    const { name, phone, unit, complaint, details } = body;
+
+    // Input validation
+    if (
+      typeof name !== 'string' || name.trim().length < 2 || name.length > 100 ||
+      typeof phone !== 'string' ||
+      typeof complaint !== 'string' || complaint.length > 200 ||
+      typeof details !== 'string' || details.length > 2000
+    ) {
+      return NextResponse.json({ error: 'Dados inválidos' }, { status: 400 });
+    }
+
+    const plainPhone = phone.replace(/\D/g, '');
+    if (plainPhone.length < 10 || plainPhone.length > 11) {
+      return NextResponse.json({ error: 'Telefone inválido' }, { status: 400 });
+    }
+
     const waLink = `https://wa.me/55${plainPhone}`;
 
     const text = `
 🆕 *Novo Lead Natuclinic*
 
-👤 *Nome:* ${name}
+👤 *Nome:* ${name.trim()}
+📍 *Unidade:* ${unit || "Não informada"}
 🩺 *Queixa:* ${complaint}
 📝 *Detalhes:* ${details}
 
@@ -27,7 +42,7 @@ export async function POST(request: Request) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         chat_id: TELEGRAM_CHAT_ID,
-        text: text,
+        text,
         parse_mode: 'Markdown',
       }),
     });
@@ -39,7 +54,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (err) {
+  } catch {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
