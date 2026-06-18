@@ -2,8 +2,6 @@
 import { Resend } from 'resend';
 import { NextResponse } from 'next/server';
 
-const resend = new Resend(process.env.RESEND_API_KEY!);
-
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, '&amp;')
@@ -15,6 +13,7 @@ function escapeHtml(str: string): string {
 
 export async function POST(request: Request) {
   try {
+    const resend = new Resend(process.env.RESEND_API_KEY!);
     const body = await request.json();
     const { name, phone, complaint, details } = body;
 
